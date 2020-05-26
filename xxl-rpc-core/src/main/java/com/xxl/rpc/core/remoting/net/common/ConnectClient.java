@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
+ * <>设计模式-模版方法模式</>
  * @author xuxueli 2018-10-19
  */
 public abstract class ConnectClient {
@@ -49,11 +50,24 @@ public abstract class ConnectClient {
 
     }
 
+    //使用volatile是通过其禁止重排序的特性来解决double check可能出现的对象无法寻址问题
+    //不发生重排序对象的创建过程：
+    //                创建对象
+    //                分配内存空间
+    //                将指针赋值给对象值
+    //发生重排序后对象的可能的创建过程：
+    //                创建对象
+    //                将指针赋值给对象值
+    //                分配内存空间
+
     private static volatile ConcurrentMap<String, ConnectClient> connectClientMap;        // (static) alread addStopCallBack
+    //每个服务器地址共用一把锁
+    //有加volatile的必要吗？这里只是一个指针不会变动需要内存可见性？
     private static volatile ConcurrentMap<String, Object> connectClientLockMap = new ConcurrentHashMap<>();
     private static ConnectClient getPool(String address, Class<? extends ConnectClient> connectClientImpl,
                                          final XxlRpcReferenceBean xxlRpcReferenceBean) throws Exception {
 
+        //double check
         // init base compont, avoid repeat init
         if (connectClientMap == null) {
             synchronized (ConnectClient.class) {
@@ -93,7 +107,7 @@ public abstract class ConnectClient {
         // remove-create new client
         synchronized (clientLock) {
 
-            // get-valid client, avlid repeat
+            // get-valid client, avoid repeat
             connectClient = connectClientMap.get(address);
             if (connectClient!=null && connectClient.isValidate()) {
                 return connectClient;
